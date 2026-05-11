@@ -118,7 +118,7 @@ def _dora_main(lifter, args):
                 joystick_y = 0.5
             else:
                 joystick_y = 0
-        elif event_id == "elevation":
+        elif event_id == "move_elevation":
             pass  # handled in normal operation phase
         elif event_id == "tick":
             pass
@@ -179,7 +179,7 @@ def _dora_main(lifter, args):
             speed_factor = 1.0
 
         # --- Elevation (mm) ---
-        if event_id == "elevation":
+        if event_id == "move_elevation":
             elevation = max(0.0, min(args.screw_length, value[0].as_py()))
             target_position = elevation / args.lead_length * 2.0 * math.pi + offset_pos
             is_stopping = False
