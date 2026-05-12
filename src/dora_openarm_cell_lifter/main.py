@@ -113,9 +113,9 @@ def _dora_main(lifter, args):
         elif event_id == "command":
             command = event["value"][0].as_py()
             if command == "lifter-up":
-                joystick_y = -0.5
-            elif command == "lifter-down":
                 joystick_y = 0.5
+            elif command == "lifter-down":
+                joystick_y = -0.5
             else:
                 joystick_y = 0
         elif event_id == "move_elevation":
