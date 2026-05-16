@@ -131,7 +131,9 @@ def _dora_main(lifter, args):
                 [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 5.0)]
             )
 
-            lifter.recv_all(1000)
+            for _ in range(5):
+                lifter.recv_all()
+                time.sleep(0.01)
 
             for motor in lifter.get_arm().get_motors():
                 lifter_pos = motor.get_position()
