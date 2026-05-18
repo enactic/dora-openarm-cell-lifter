@@ -236,7 +236,7 @@ def _dora_main(lifter, args):
                 )
 
                 lifter.get_arm().posvel_control_all(
-                    [oa.PosVelParam(q=-pos_max * 2.0, dq=applied_vel)]
+                    [oa.PosVelParam(q=offset_pos, dq=applied_vel)]
                 )
 
         # DOWN operation
@@ -263,7 +263,7 @@ def _dora_main(lifter, args):
                 )
 
                 lifter.get_arm().posvel_control_all(
-                    [oa.PosVelParam(q=pos_max * 2.0, dq=applied_vel)]
+                    [oa.PosVelParam(q=pos_max + offset_pos, dq=applied_vel)]
                 )
 
         # STOP (Within deadzone)
