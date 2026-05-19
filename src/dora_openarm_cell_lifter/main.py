@@ -328,7 +328,7 @@ def main():
         )
 
         lifter.recv_all(1000)  # Wait up to 1ms for the motor response
-        time.sleep(0.05) # Small delay to allow the motor to move
+        time.sleep(0.05)  # Small delay to allow the motor to move
 
         for motor in lifter.get_arm().get_motors():
             lifter_tau = motor.get_torque()
