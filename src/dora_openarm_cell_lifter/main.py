@@ -275,6 +275,9 @@ def _dora_main(lifter, args):
             if not is_stopping:
                 # Memorize the exact position at the moment the joystick is released
                 hold_pos = lifter_pos
+                # Snapshot the action target so it matches the held command
+                # and stays constant for the duration of the stop.
+                action_elevation = obs_elevation
                 is_stopping = True
 
             # Hold silently at the memorized position (unaffected by sensor noise)
@@ -294,8 +297,9 @@ def main():
     action:
     Estimated next elevation (mm), calculated from observation and `applied_vel`.
     `applied_vel` is reduced linearly near the stroke limits (within `SLOW_MARGIN`) to avoid collision.
-    `action` is emitted every loop in normal operation; when there is no movement
-    (joystick deadzone or jammed), the previous target value is held.
+    `action` is emitted every loop in normal operation. When the joystick enters
+    the deadzone, `action` is snapped to the current observation at the moment of
+    release and held constant; when jammed, the previous target value is held.
     """
     parser = argparse.ArgumentParser(description="Control the OpenArm Lifter")
     parser.add_argument(
