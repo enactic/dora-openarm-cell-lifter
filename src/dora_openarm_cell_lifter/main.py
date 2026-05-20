@@ -198,10 +198,8 @@ def _dora_main(lifter, args):
         if abs(lifter_tau) > TORQUE_LIMIT:
             if jammed_direction is None:
                 # Memorize the exact position at impact to prevent hunting
-                hold_pos = lifter_pos
-                hold_elevation = (
-                    (hold_pos - offset_pos) / (2.0 * math.pi) * args.lead_length
-                )
+                hold_pos = obs_position + offset_pos  # Use the unwrapper position
+                hold_elevation = obs_elevation  # obs elevation is calculated from the unwrapper lifter_pos(hold_pos)
 
                 if joystick_y > JOYSTICK_DEADZONE:
                     jammed_direction = "UP"
@@ -299,10 +297,8 @@ def _dora_main(lifter, args):
         else:
             if not is_stopping:
                 # Memorize the exact position at the moment the joystick is released
-                hold_pos = lifter_pos
-                hold_elevation = (
-                    (hold_pos - offset_pos) / (2.0 * math.pi) * args.lead_length
-                )
+                hold_pos = obs_position + offset_pos  # Use the unwrapper position
+                hold_elevation = obs_elevation  # obs elevation is calculated from the unwrapper position(hold_pos)
                 is_stopping = True
 
             node.send_output(
