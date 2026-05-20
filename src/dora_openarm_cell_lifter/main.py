@@ -26,6 +26,7 @@ import pyarrow as pa
 # --- Constants ---
 VEL_MAX = 30.0
 POS_MIN = 0.0
+HOLD_POS_VEL = 1.0
 
 # Threshold for joystick deadzone
 JOYSTICK_DEADZONE = 0.15
@@ -93,6 +94,7 @@ def _dora_main(lifter, args):
     # State management variables
     jammed_direction = None
     hold_pos = 0.0
+    hold_elevation = 0.0
     is_stopping = False
 
     prev_time = time.time()
@@ -181,6 +183,12 @@ def _dora_main(lifter, args):
             elevation = max(0.0, min(args.screw_length, value[0].as_py()))
             target_position = elevation / args.lead_length * 2.0 * math.pi + offset_pos
             is_stopping = False
+
+            node.send_output(
+                "elevation_action",
+                pa.array([elevation], type=pa.float32()),
+            )
+
             lifter.get_arm().posvel_control_all(
                 [oa.PosVelParam(q=target_position, dq=VEL_MAX * speed_factor)]
             )
@@ -190,7 +198,8 @@ def _dora_main(lifter, args):
         if abs(lifter_tau) > TORQUE_LIMIT:
             if jammed_direction is None:
                 # Memorize the exact position at impact to prevent hunting
-                hold_pos = lifter_pos
+                hold_pos = obs_position + offset_pos  # Use the unwrapper position
+                hold_elevation = obs_elevation  # obs elevation is calculated from the unwrapper lifter_pos(hold_pos)
 
                 if joystick_y > JOYSTICK_DEADZONE:
                     jammed_direction = "UP"
@@ -215,9 +224,14 @@ def _dora_main(lifter, args):
             is_stopping = False
             if jammed_direction in ["UP", "UNKNOWN"]:
                 # Hold silently at the memorized position while jammed in the UP direction
+                node.send_output(
+                    "elevation_action",
+                    pa.array([hold_elevation], type=pa.float32()),
+                )
                 lifter.get_arm().posvel_control_all(
                     [oa.PosVelParam(q=hold_pos, dq=0.0)]
                 )
+
             else:
                 applied_vel = VEL_MAX * (
                     abs(joystick_y - JOYSTICK_DEADZONE) / JOYSTICK_RANGE
@@ -228,6 +242,7 @@ def _dora_main(lifter, args):
                 action_elevation = _calc_next_elevation(
                     obs_elevation, -applied_vel, dt, args.lead_length
                 )
+
                 node.send_output(
                     "elevation_action",
                     pa.array([action_elevation], type=pa.float32()),
@@ -242,6 +257,11 @@ def _dora_main(lifter, args):
             is_stopping = False
             if jammed_direction in ["DOWN", "UNKNOWN"]:
                 # Hold silently at the memorized position while jammed in the DOWN direction
+
+                node.send_output(
+                    "elevation_action",
+                    pa.array([hold_elevation], type=pa.float32()),
+                )
                 lifter.get_arm().posvel_control_all(
                     [oa.PosVelParam(q=hold_pos, dq=0.0)]
                 )
@@ -255,6 +275,7 @@ def _dora_main(lifter, args):
                 action_elevation = _calc_next_elevation(
                     obs_elevation, applied_vel, dt, args.lead_length
                 )
+
                 node.send_output(
                     "elevation_action",
                     pa.array([action_elevation], type=pa.float32()),
@@ -268,11 +289,18 @@ def _dora_main(lifter, args):
         else:
             if not is_stopping:
                 # Memorize the exact position at the moment the joystick is released
-                hold_pos = lifter_pos
+                hold_pos = obs_position + offset_pos  # Use the unwrapper position
+                hold_elevation = obs_elevation  # obs elevation is calculated from the unwrapper position(hold_pos)
                 is_stopping = True
 
-            # Hold silently at the memorized position (unaffected by sensor noise)
-            lifter.get_arm().posvel_control_all([oa.PosVelParam(q=hold_pos, dq=0.0)])
+            node.send_output(
+                "elevation_action",
+                pa.array([hold_elevation], type=pa.float32()),
+            )
+            # Hold position with a small velocity to maintain stiffness, preventing drift due to gravity or disturbances
+            lifter.get_arm().posvel_control_all(
+                [oa.PosVelParam(q=hold_pos, dq=HOLD_POS_VEL)]
+            )
 
 
 def main():
