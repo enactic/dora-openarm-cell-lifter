@@ -66,9 +66,8 @@ class PositionUnwrapper:
         return self._continuous_pos
 
 
-def _calc_next_elevation(current_elevation, velocity, dt, lead_length, screw_length):
-    next_elevation = current_elevation + velocity * dt * lead_length / (2.0 * math.pi)
-    return max(0.0, min(next_elevation, screw_length))  # Clamp to physical limits
+def _calc_next_elevation(current_elevation, velocity, dt, lead_length):
+    return current_elevation + velocity * dt * lead_length / (2.0 * math.pi)
 
 
 def _dora_main(lifter, args):
@@ -240,11 +239,7 @@ def _dora_main(lifter, args):
 
                 # action: elevation(mm)
                 action_elevation = _calc_next_elevation(
-                    obs_elevation, -applied_vel, dt, args.lead_length, args.screw_length
-                )
-
-                target_position = (
-                    action_elevation / args.lead_length * 2.0 * math.pi + offset_pos
+                    obs_elevation, -applied_vel, dt, args.lead_length
                 )
 
                 node.send_output(
@@ -253,7 +248,7 @@ def _dora_main(lifter, args):
                 )
 
                 lifter.get_arm().posvel_control_all(
-                    [oa.PosVelParam(q=target_position, dq=applied_vel)]
+                    [oa.PosVelParam(q=offset_pos, dq=applied_vel)]
                 )
 
         # DOWN operation
@@ -277,11 +272,7 @@ def _dora_main(lifter, args):
 
                 # action: elevation(mm)
                 action_elevation = _calc_next_elevation(
-                    obs_elevation, applied_vel, dt, args.lead_length, args.screw_length
-                )
-
-                target_position = (
-                    action_elevation / args.lead_length * 2.0 * math.pi + offset_pos
+                    obs_elevation, applied_vel, dt, args.lead_length
                 )
 
                 node.send_output(
@@ -290,7 +281,7 @@ def _dora_main(lifter, args):
                 )
 
                 lifter.get_arm().posvel_control_all(
-                    [oa.PosVelParam(q=target_position, dq=applied_vel)]
+                    [oa.PosVelParam(q=pos_max + offset_pos, dq=applied_vel)]
                 )
 
         # STOP (Within deadzone)
