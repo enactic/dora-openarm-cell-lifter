@@ -47,14 +47,14 @@ def main_module(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("joystick_y", "expected_velocity"),
+    ("joystick_y", "expected_elevation", "expected_velocity"),
     [
-        (1.0, -30.0),
-        (-1.0, 30.0),
+        (1.0, -18.8732414637843, 30.0),
+        (-1.0, 28.8732414637843, 30.0),
     ],
 )
 def test_joystick_y_produces_expected_elevation_action(
-    main_module, joystick_y, expected_velocity
+    main_module, joystick_y, expected_elevation, expected_velocity
 ):
     action_elevation, applied_vel = main_module._calc_elevation_action_from_joystick(
         current_elevation=5.0,
@@ -63,14 +63,8 @@ def test_joystick_y_produces_expected_elevation_action(
         lead_length=5.0,
     )
 
-    expected_elevation = main_module._calc_next_elevation(
-        current_elevation=5.0,
-        velocity=expected_velocity,
-        dt=1.0,
-        lead_length=5.0,
-    )
     assert action_elevation == pytest.approx(expected_elevation)
-    assert applied_vel == pytest.approx(main_module.VEL_MAX)
+    assert applied_vel == pytest.approx(expected_velocity)
 
 
 @pytest.mark.parametrize("joystick_y", [-0.15, 0.0, 0.15])
