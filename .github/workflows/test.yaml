@@ -35,9 +35,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: 3
-      - name: Install pytest
-        run: |
-          python -m pip install pytest
+      - uses: astral-sh/setup-uv@v6
       - name: Run pytest
         run: |
-          pytest
+          uvx --from pytest pytest
