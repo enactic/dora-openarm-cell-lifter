@@ -19,6 +19,17 @@ from pathlib import Path
 import pytest
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.modules.update(
+    dora=types.SimpleNamespace(Node=None),
+    openarm_can=types.SimpleNamespace(
+        PosVelParam=lambda *, q, dq: types.SimpleNamespace(q=q, dq=dq)
+    ),
+    pyarrow=types.SimpleNamespace(
+        array=lambda values, type=None: list(values),
+        float32=lambda: "float32",
+    ),
+)
 
 import dora_openarm_cell_lifter.main as main_module  # noqa: E402
 
