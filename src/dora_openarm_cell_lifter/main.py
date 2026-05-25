@@ -87,7 +87,8 @@ def _calc_elevation_action_from_joystick(
             current_elevation, applied_vel, dt, lead_length
         ), applied_vel
 
-    return None, 0.0
+    else:
+        return None, 0.0
 
 
 def _dora_main(lifter, args):
