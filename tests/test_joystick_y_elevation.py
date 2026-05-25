@@ -24,26 +24,22 @@ sys.path.insert(
     str(Path(__file__).resolve().parents[1] / "src"),
 )
 
-
-@pytest.fixture
-def main_module(monkeypatch):
-    fake_dora = types.SimpleNamespace(Node=None)
-    fake_openarm = types.SimpleNamespace(
+sys.modules.setdefault("dora", types.SimpleNamespace(Node=None))
+sys.modules.setdefault(
+    "openarm_can",
+    types.SimpleNamespace(
         PosVelParam=lambda *, q, dq: types.SimpleNamespace(q=q, dq=dq)
-    )
-    fake_pyarrow = types.SimpleNamespace(
+    ),
+)
+sys.modules.setdefault(
+    "pyarrow",
+    types.SimpleNamespace(
         array=lambda values, type=None: list(values),
         float32=lambda: "float32",
-    )
+    ),
+)
 
-    monkeypatch.setitem(sys.modules, "dora", fake_dora)
-    monkeypatch.setitem(sys.modules, "openarm_can", fake_openarm)
-    monkeypatch.setitem(sys.modules, "pyarrow", fake_pyarrow)
-    sys.modules.pop("dora_openarm_cell_lifter.main", None)
-
-    import dora_openarm_cell_lifter.main as main_module
-
-    return main_module
+import dora_openarm_cell_lifter.main as main_module  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -54,7 +50,7 @@ def main_module(monkeypatch):
     ],
 )
 def test_joystick_y_produces_expected_elevation_action(
-    main_module, joystick_y, expected_elevation, expected_velocity
+    joystick_y, expected_elevation, expected_velocity
 ):
     action_elevation, applied_vel = main_module._calc_elevation_action_from_joystick(
         current_elevation=5.0,
@@ -68,7 +64,7 @@ def test_joystick_y_produces_expected_elevation_action(
 
 
 @pytest.mark.parametrize("joystick_y", [-0.15, 0.0, 0.15])
-def test_deadzone_joystick_y_does_not_produce_elevation_action(main_module, joystick_y):
+def test_deadzone_joystick_y_does_not_produce_elevation_action(joystick_y):
     action_elevation, applied_vel = main_module._calc_elevation_action_from_joystick(
         current_elevation=5.0,
         joystick_y=joystick_y,
