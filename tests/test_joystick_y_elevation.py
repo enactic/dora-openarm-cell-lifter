@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 import sys
 import types
 from pathlib import Path
@@ -42,7 +41,9 @@ def main_module(monkeypatch):
     monkeypatch.setitem(sys.modules, "pyarrow", fake_pyarrow)
     sys.modules.pop("dora_openarm_cell_lifter.main", None)
 
-    return importlib.import_module("dora_openarm_cell_lifter.main")
+    import dora_openarm_cell_lifter.main as main_module
+
+    return main_module
 
 
 @pytest.mark.parametrize(
