@@ -80,7 +80,7 @@ def _calc_elevation_action_from_joystick(
             current_elevation, -applied_vel, dt, lead_length
         ), applied_vel
 
-    if joystick_y < -JOYSTICK_DEADZONE:
+    elif joystick_y < -JOYSTICK_DEADZONE:
         applied_vel = VEL_MAX * (abs(joystick_y + JOYSTICK_DEADZONE) / JOYSTICK_RANGE)
         applied_vel *= speed_factor
         return _calc_next_elevation(
