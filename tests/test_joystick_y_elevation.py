@@ -19,21 +19,13 @@ from pathlib import Path
 import pytest
 
 
-sys.path.insert(
-    0,
-    str(Path(__file__).resolve().parents[1] / "src"),
-)
-
-sys.modules.setdefault("dora", types.SimpleNamespace(Node=None))
-sys.modules.setdefault(
-    "openarm_can",
-    types.SimpleNamespace(
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.modules.update(
+    dora=types.SimpleNamespace(Node=None),
+    openarm_can=types.SimpleNamespace(
         PosVelParam=lambda *, q, dq: types.SimpleNamespace(q=q, dq=dq)
     ),
-)
-sys.modules.setdefault(
-    "pyarrow",
-    types.SimpleNamespace(
+    pyarrow=types.SimpleNamespace(
         array=lambda values, type=None: list(values),
         float32=lambda: "float32",
     ),
