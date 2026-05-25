@@ -70,6 +70,26 @@ def _calc_next_elevation(current_elevation, velocity, dt, lead_length):
     return current_elevation + velocity * dt * lead_length / (2.0 * math.pi)
 
 
+def _calc_elevation_action_from_joystick(
+    current_elevation, joystick_y, dt, lead_length, speed_factor=1.0
+):
+    if joystick_y > JOYSTICK_DEADZONE:
+        applied_vel = VEL_MAX * (abs(joystick_y - JOYSTICK_DEADZONE) / JOYSTICK_RANGE)
+        applied_vel *= speed_factor
+        return _calc_next_elevation(
+            current_elevation, -applied_vel, dt, lead_length
+        ), applied_vel
+
+    if joystick_y < -JOYSTICK_DEADZONE:
+        applied_vel = VEL_MAX * (abs(joystick_y + JOYSTICK_DEADZONE) / JOYSTICK_RANGE)
+        applied_vel *= speed_factor
+        return _calc_next_elevation(
+            current_elevation, applied_vel, dt, lead_length
+        ), applied_vel
+
+    return None, 0.0
+
+
 def _dora_main(lifter, args):
     pos_max = (args.screw_length / args.lead_length) * 2.0 * math.pi
     slow_margin = pos_max * 0.05
@@ -221,14 +241,12 @@ def _dora_main(lifter, args):
                     [oa.PosVelParam(q=hold_pos, dq=0.0)]
                 )
             else:
-                applied_vel = VEL_MAX * (
-                    abs(joystick_y - JOYSTICK_DEADZONE) / JOYSTICK_RANGE
-                )
-                applied_vel *= speed_factor  # Apply linear deceleration
-
-                # action: elevation(mm)
-                action_elevation = _calc_next_elevation(
-                    obs_elevation, -applied_vel, dt, args.lead_length
+                action_elevation, applied_vel = _calc_elevation_action_from_joystick(
+                    obs_elevation,
+                    joystick_y,
+                    dt,
+                    args.lead_length,
+                    speed_factor,
                 )
                 node.send_output(
                     "elevation_action",
@@ -248,14 +266,12 @@ def _dora_main(lifter, args):
                     [oa.PosVelParam(q=hold_pos, dq=0.0)]
                 )
             else:
-                applied_vel = VEL_MAX * (
-                    abs(joystick_y + JOYSTICK_DEADZONE) / JOYSTICK_RANGE
-                )
-                applied_vel *= speed_factor  # Apply linear deceleration
-
-                # action: elevation(mm)
-                action_elevation = _calc_next_elevation(
-                    obs_elevation, applied_vel, dt, args.lead_length
+                action_elevation, applied_vel = _calc_elevation_action_from_joystick(
+                    obs_elevation,
+                    joystick_y,
+                    dt,
+                    args.lead_length,
+                    speed_factor,
                 )
                 node.send_output(
                     "elevation_action",
