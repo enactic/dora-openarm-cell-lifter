@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-import types
-from pathlib import Path
 
 import pytest
-
 
 
 import dora_openarm_cell_lifter.main as main_module  # noqa: E402
