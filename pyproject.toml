@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "dora-openarm-cell-lifter"
 version = "0.1.0"
@@ -34,6 +38,12 @@ dora-openarm-cell-lifter = "dora_openarm_cell_lifter.main:main"
 
 [project.urls]
 Repository = "https://github.com/enactic/dora-openarm-cell-lifter"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.ruff.lint]
 extend-select = [
