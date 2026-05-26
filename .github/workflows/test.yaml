@@ -39,6 +39,9 @@ jobs:
           sudo apt install -y software-properties-common
           sudo add-apt-repository -y ppa:openarm/main
           sudo apt install -y libopenarm-can-dev
+      - name: Sync environment
+        run: |
+          uv sync
       - name: Run pytest
         run: |
           uv run pytest
