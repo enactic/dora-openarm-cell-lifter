@@ -78,14 +78,14 @@ def _calc_elevation_action_from_joystick(
         applied_vel = VEL_MAX * (abs(joystick_y - JOYSTICK_DEADZONE) / JOYSTICK_RANGE)
         applied_vel *= speed_factor
         return _calc_next_elevation(
-            current_elevation, -applied_vel, dt, lead_length
+            current_elevation, applied_vel, dt, lead_length
         ), applied_vel
 
     elif joystick_y < -JOYSTICK_DEADZONE:
         applied_vel = VEL_MAX * (abs(joystick_y + JOYSTICK_DEADZONE) / JOYSTICK_RANGE)
         applied_vel *= speed_factor
         return _calc_next_elevation(
-            current_elevation, applied_vel, dt, lead_length
+            current_elevation, -applied_vel, dt, lead_length
         ), applied_vel
 
     else:
@@ -136,9 +136,9 @@ def _dora_main(lifter, args):
         elif event_id == "command":
             command = event["value"][0].as_py()
             if command == "lifter-up":
-                joystick_y = -0.5
-            elif command == "lifter-down":
                 joystick_y = 0.5
+            elif command == "lifter-down":
+                joystick_y = -0.5
             else:
                 joystick_y = 0
         elif event_id == "move_elevation":
