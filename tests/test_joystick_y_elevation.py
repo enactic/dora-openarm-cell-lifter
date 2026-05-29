@@ -22,8 +22,8 @@ import dora_openarm_cell_lifter.main as main_module  # noqa: E402
 @pytest.mark.parametrize(
     ("joystick_y", "expected_elevation", "expected_velocity"),
     [
-        (1.0, -18.8732414637843, 30.0),
-        (-1.0, 28.8732414637843, 30.0),
+        (1.0, 28.8732414637843, 30.0),
+        (-1.0, -18.8732414637843, 30.0),
     ],
 )
 def test_joystick_y_produces_expected_elevation_action(

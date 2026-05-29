@@ -78,14 +78,14 @@ def _calc_elevation_action_from_joystick(
         applied_vel = VEL_MAX * (abs(joystick_y - JOYSTICK_DEADZONE) / JOYSTICK_RANGE)
         applied_vel *= speed_factor
         return _calc_next_elevation(
-            current_elevation, -applied_vel, dt, lead_length
+            current_elevation, applied_vel, dt, lead_length
         ), applied_vel
 
     elif joystick_y < -JOYSTICK_DEADZONE:
         applied_vel = VEL_MAX * (abs(joystick_y + JOYSTICK_DEADZONE) / JOYSTICK_RANGE)
         applied_vel *= speed_factor
         return _calc_next_elevation(
-            current_elevation, applied_vel, dt, lead_length
+            current_elevation, -applied_vel, dt, lead_length
         ), applied_vel
 
     else:
@@ -136,9 +136,9 @@ def _dora_main(lifter, args):
         elif event_id == "command":
             command = event["value"][0].as_py()
             if command == "lifter-up":
-                joystick_y = -0.5
-            elif command == "lifter-down":
                 joystick_y = 0.5
+            elif command == "lifter-down":
+                joystick_y = -0.5
             else:
                 joystick_y = 0
         elif event_id == "move_elevation":
@@ -185,7 +185,7 @@ def _dora_main(lifter, args):
             "elevation_observation", pa.array([obs_elevation], type=pa.float32())
         )
 
-        # Calculate distance to the nearest physical limit (upper 0.0 or lower pos_max)
+        # Calculate distance to the nearest physical limit (lower 0.0 or upper pos_max)
         distance_to_min = obs_position - 0.0
         distance_to_max = pos_max - obs_position
         distance_to_edge = min(distance_to_min, distance_to_max)
@@ -267,8 +267,9 @@ def _dora_main(lifter, args):
                     pa.array([action_elevation], type=pa.float32()),
                 )
 
+                # Drive toward the top stroke limit (positive joystick_y = up)
                 lifter.get_arm().posvel_control_all(
-                    [oa.PosVelParam(q=offset_pos, dq=applied_vel)]
+                    [oa.PosVelParam(q=pos_max + offset_pos, dq=applied_vel)]
                 )
 
         # DOWN operation
@@ -298,8 +299,9 @@ def _dora_main(lifter, args):
                     pa.array([action_elevation], type=pa.float32()),
                 )
 
+                # Drive toward the bottom stroke limit (negative joystick_y = down)
                 lifter.get_arm().posvel_control_all(
-                    [oa.PosVelParam(q=pos_max + offset_pos, dq=applied_vel)]
+                    [oa.PosVelParam(q=offset_pos, dq=applied_vel)]
                 )
 
         # STOP (Within deadzone)
