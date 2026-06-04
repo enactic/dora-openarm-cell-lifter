@@ -410,7 +410,7 @@ def main():
     # Move the lifter down to the mechanical stop before disabling
     for _ in range(200):
         lifter.get_arm().posvel_control_all(
-            [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 5.0)]
+            [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 2.0)]
         )
 
         for _ in range(5):
