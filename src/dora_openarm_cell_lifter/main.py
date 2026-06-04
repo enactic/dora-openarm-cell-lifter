@@ -121,23 +121,26 @@ def _dora_main(lifter, args):
     prev_time = time.time()
 
     calib_tick = 0
-    print(
-        f"[LIFTER] Starting event loop. Initial motor state: pos={lifter_pos:.4f} rad, tau={lifter_tau:.4f} Nm",
-        flush=True,
-    )
-    print(f"[LIFTER] pos_max={pos_max:.4f} rad, torque_limit=1.0 Nm (calibration)", flush=True)
+    if args.debug:
+        print(
+            f"[LIFTER] Starting event loop. Initial motor state: pos={lifter_pos:.4f} rad, tau={lifter_tau:.4f} Nm",
+            flush=True,
+        )
+        print(f"[LIFTER] pos_max={pos_max:.4f} rad, torque_limit=1.0 Nm (calibration)", flush=True)
 
     for event in node:
         event_type = event["type"]
         if event_type != "INPUT":
-            print(f"[LIFTER] Non-INPUT event: type={event_type}", flush=True)
+            if args.debug:
+                print(f"[LIFTER] Non-INPUT event: type={event_type}", flush=True)
             continue
 
         event_id = event.get("id")
 
         value = event.get("value")
         if value is None:
-            print(f"[LIFTER] Event '{event_id}' has no value, skipping", flush=True)
+            if args.debug:
+                print(f"[LIFTER] Event '{event_id}' has no value, skipping", flush=True)
             continue
 
         if event_id == "joystick_y":
@@ -156,7 +159,8 @@ def _dora_main(lifter, args):
         elif event_id == "tick":
             pass
         else:
-            print(f"[LIFTER] Unknown event_id='{event_id}', skipping", flush=True)
+            if args.debug:
+                print(f"[LIFTER] Unknown event_id='{event_id}', skipping", flush=True)
             continue
 
         # --- Calibration Phase ---
@@ -174,18 +178,20 @@ def _dora_main(lifter, args):
                 lifter_tau = motor.get_torque()
 
             calib_tick += 1
-            print(
-                f"[CALIB tick={calib_tick}] event={event_id}  pos={lifter_pos:.4f} rad  tau={lifter_tau:.4f} Nm  (threshold=1.0)",
-                flush=True,
-            )
+            if args.debug:
+                print(
+                    f"[CALIB tick={calib_tick}] event={event_id}  pos={lifter_pos:.4f} rad  tau={lifter_tau:.4f} Nm  (threshold=1.0)",
+                    flush=True,
+                )
 
             if abs(lifter_tau) > 1.0:
                 offset_pos = lifter_pos
                 calibrated = True
-                print(
-                    f"[CALIB] Done! offset_pos={offset_pos:.4f} rad after {calib_tick} ticks. Driving to pos_max.",
-                    flush=True,
-                )
+                if args.debug:
+                    print(
+                        f"[CALIB] Done! offset_pos={offset_pos:.4f} rad after {calib_tick} ticks. Driving to pos_max.",
+                        flush=True,
+                    )
                 lifter.get_arm().posvel_control_all(
                     [oa.PosVelParam(q=pos_max, dq=VEL_MAX / 20.0)]
                 )
@@ -374,6 +380,12 @@ def main():
         default=float(os.getenv("SCREW_LENGTH", 300.0)),
         help="Lead screw stroke length in mm",
         type=float,
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Enable debug prints for calibration and event flow",
     )
     args = parser.parse_args()
 
