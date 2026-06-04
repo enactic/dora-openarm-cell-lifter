@@ -126,7 +126,10 @@ def _dora_main(lifter, args):
             f"[LIFTER] Starting event loop. Initial motor state: pos={lifter_pos:.4f} rad, tau={lifter_tau:.4f} Nm",
             flush=True,
         )
-        print(f"[LIFTER] pos_max={pos_max:.4f} rad, torque_limit=1.0 Nm (calibration)", flush=True)
+        print(
+            f"[LIFTER] pos_max={pos_max:.4f} rad, torque_limit=1.0 Nm (calibration)",
+            flush=True,
+        )
 
     for event in node:
         event_type = event["type"]
