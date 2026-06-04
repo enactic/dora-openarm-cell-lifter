@@ -120,14 +120,30 @@ def _dora_main(lifter, args):
 
     prev_time = time.time()
 
+    calib_tick = 0
+    if args.debug:
+        print(
+            f"[LIFTER] Starting event loop. Initial motor state: pos={lifter_pos:.4f} rad, tau={lifter_tau:.4f} Nm",
+            flush=True,
+        )
+        print(
+            f"[LIFTER] pos_max={pos_max:.4f} rad, torque_limit=1.0 Nm (calibration)",
+            flush=True,
+        )
+
     for event in node:
-        if event["type"] != "INPUT":
+        event_type = event["type"]
+        if event_type != "INPUT":
+            if args.debug:
+                print(f"[LIFTER] Non-INPUT event: type={event_type}", flush=True)
             continue
 
         event_id = event.get("id")
 
         value = event.get("value")
         if value is None:
+            if args.debug:
+                print(f"[LIFTER] Event '{event_id}' has no value, skipping", flush=True)
             continue
 
         if event_id == "joystick_y":
@@ -146,6 +162,8 @@ def _dora_main(lifter, args):
         elif event_id == "tick":
             pass
         else:
+            if args.debug:
+                print(f"[LIFTER] Unknown event_id='{event_id}', skipping", flush=True)
             continue
 
         # --- Calibration Phase ---
@@ -154,14 +172,29 @@ def _dora_main(lifter, args):
                 [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 5.0)]
             )
 
-            lifter.recv_all(1000)  # Wait up to 1ms for the motor response
+            for _ in range(5):
+                lifter.recv_all()
+                time.sleep(0.01)
 
             for motor in lifter.get_arm().get_motors():
                 lifter_pos = motor.get_position()
                 lifter_tau = motor.get_torque()
+
+            calib_tick += 1
+            if args.debug:
+                print(
+                    f"[CALIB tick={calib_tick}] event={event_id}  pos={lifter_pos:.4f} rad  tau={lifter_tau:.4f} Nm  (threshold=1.0)",
+                    flush=True,
+                )
+
             if abs(lifter_tau) > 1.0:
                 offset_pos = lifter_pos
                 calibrated = True
+                if args.debug:
+                    print(
+                        f"[CALIB] Done! offset_pos={offset_pos:.4f} rad after {calib_tick} ticks. Driving to pos_max.",
+                        flush=True,
+                    )
                 lifter.get_arm().posvel_control_all(
                     [oa.PosVelParam(q=pos_max, dq=VEL_MAX / 20.0)]
                 )
@@ -351,6 +384,12 @@ def main():
         help="Lead screw stroke length in mm",
         type=float,
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Enable debug prints for calibration and event flow",
+    )
     args = parser.parse_args()
 
     lifter = oa.OpenArm(args.can_interface, enable_fd=True)
@@ -371,11 +410,12 @@ def main():
     # Move the lifter down to the mechanical stop before disabling
     for _ in range(200):
         lifter.get_arm().posvel_control_all(
-            [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 1.0)]
+            [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 2.0)]
         )
 
-        lifter.recv_all(1000)  # Wait up to 1ms for the motor response
-        time.sleep(0.05)  # Small delay to allow the motor to move
+        for _ in range(5):
+            lifter.recv_all()
+            time.sleep(0.01)
 
         for motor in lifter.get_arm().get_motors():
             lifter_tau = motor.get_torque()
