@@ -154,7 +154,7 @@ def _dora_main(lifter, args):
                 [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 5.0)]
             )
 
-            lifter.recv_all(1000)  # Wait up to 1ms for the motor response
+            lifter.recv_all(50000)  # Wait up to 50ms for the motor response
 
             for motor in lifter.get_arm().get_motors():
                 lifter_pos = motor.get_position()
