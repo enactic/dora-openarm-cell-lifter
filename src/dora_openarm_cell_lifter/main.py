@@ -28,6 +28,9 @@ VEL_MAX = 30.0
 POS_MIN = 0.0
 HOLD_POS_VEL = 1.0
 
+# Used for calibration and homing
+CALIB_TORQUE_LIMIT = 0.7
+
 # Threshold for joystick deadzone
 JOYSTICK_DEADZONE = 0.15
 # Scaling factor for velocity calculation (1.0 - 0.15)
@@ -131,6 +134,12 @@ def _dora_main(lifter, args):
             flush=True,
         )
 
+    # For calibration: give runway for torque sensing
+    lifter.get_arm().posvel_control_all(
+        [oa.PosVelParam(q=POS_MIN + 2.0, dq=VEL_MAX / 5.0)]
+    )
+    time.sleep(1.0)
+
     for event in node:
         event_type = event["type"]
         if event_type != "INPUT":
@@ -172,9 +181,7 @@ def _dora_main(lifter, args):
                 [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 5.0)]
             )
 
-            for _ in range(5):
-                lifter.recv_all()
-                time.sleep(0.01)
+            lifter.recv_all()
 
             for motor in lifter.get_arm().get_motors():
                 lifter_pos = motor.get_position()
@@ -183,11 +190,11 @@ def _dora_main(lifter, args):
             calib_tick += 1
             if args.debug:
                 print(
-                    f"[CALIB tick={calib_tick}] event={event_id}  pos={lifter_pos:.4f} rad  tau={lifter_tau:.4f} Nm  (threshold=1.0)",
+                    f"[CALIB tick={calib_tick}] event={event_id}  pos={lifter_pos:.4f} rad  tau={lifter_tau:.4f} Nm  (threshold={CALIB_TORQUE_LIMIT})",
                     flush=True,
                 )
 
-            if abs(lifter_tau) > 1.0:
+            if abs(lifter_tau) > CALIB_TORQUE_LIMIT:
                 offset_pos = lifter_pos
                 calibrated = True
                 if args.debug:
@@ -408,20 +415,26 @@ def main():
     _dora_main(lifter, args)
 
     # Move the lifter down to the mechanical stop before disabling
-    for _ in range(200):
+    homing_tick = 0
+    while True:
         lifter.get_arm().posvel_control_all(
-            [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 2.0)]
+            [oa.PosVelParam(q=POS_MIN - 1000.0, dq=VEL_MAX / 5.0)]
         )
 
-        for _ in range(5):
-            lifter.recv_all()
-            time.sleep(0.01)
+        lifter.recv_all()
 
         for motor in lifter.get_arm().get_motors():
             lifter_tau = motor.get_torque()
-        if abs(lifter_tau) > 1.0:
+            lifter_pos = motor.get_position()
+            homing_tick += 1
+            if args.debug:
+                print(
+                    f"[HOMING tick={homing_tick}]   pos={lifter_pos:.4f} rad  tau={lifter_tau:.4f} Nm  (threshold={CALIB_TORQUE_LIMIT})",
+                    flush=True,
+                )
+        if abs(lifter_tau) > CALIB_TORQUE_LIMIT:
             break
-        # stops the shutdown homing when abs(lifter_tau) > 1.0
+        # stops the shutdown homing when abs(lifter_tau) > CALIB_TORQUE_LIMIT
 
     # Disable motors for safety after exiting the loop
     lifter.disable_all()
