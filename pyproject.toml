@@ -18,7 +18,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dora-openarm-cell-lifter"
-version = "0.1.0"
+version = "0.1.1"
 authors = [{ name = "Enactic, Inc." }]
 description = "dora-rs node to control OpenArm Cell Lifter"
 license = { text = "Apache-2.0" }
