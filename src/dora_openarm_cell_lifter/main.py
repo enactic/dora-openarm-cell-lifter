@@ -28,6 +28,11 @@ VEL_MAX = 30.0
 POS_MIN = 0.0
 HOLD_POS_VEL = 1.0
 
+# Speed of the move to the start elevation after calibration, and how close
+# (rad) counts as arrived, after which the position is held with HOLD_POS_VEL.
+START_MOVE_VEL = VEL_MAX / 5.0
+START_REACHED_RAD = 0.1
+
 # Used for calibration and homing
 CALIB_TORQUE_LIMIT = 0.7
 
@@ -68,6 +73,19 @@ class PositionUnwrapper:
         self._continuous_pos += diff
         self._prev_raw = current_raw
         return self._continuous_pos
+
+
+def _start_elevation(value, screw_length):
+    """Return the start elevation (mm) clamped to the stroke, or None if off."""
+    value = (value or "").strip().lower()
+    if value in ("", "off"):
+        return None
+    return max(0.0, min(screw_length, float(value)))
+
+
+def _reached(position, target):
+    """Return whether the motor position (rad) is at the target."""
+    return abs(position - target) < START_REACHED_RAD
 
 
 def _calc_next_elevation(current_elevation, velocity, dt, lead_length):
@@ -120,6 +138,8 @@ def _dora_main(lifter, args):
     hold_pos = 0.0
     hold_elevation = 0.0
     is_stopping = False
+    # Driving to the start elevation after calibration (faster than a hold).
+    moving_to_start = False
 
     prev_time = time.time()
 
@@ -197,15 +217,25 @@ def _dora_main(lifter, args):
             if abs(lifter_tau) > CALIB_TORQUE_LIMIT:
                 offset_pos = lifter_pos
                 calibrated = True
+                # With a start elevation, move there and hold it, like the
+                # arms' start pose, until the first lifter command. Without
+                # one, hold where calibration ended (the bottom).
+                start_elevation = _start_elevation(
+                    args.start_elevation, args.screw_length
+                )
+                if start_elevation is not None:
+                    hold_elevation = start_elevation
+                    hold_pos = (
+                        start_elevation / args.lead_length * 2.0 * math.pi + offset_pos
+                    )
+                    is_stopping = True
+                    moving_to_start = True
                 if args.debug:
                     print(
-                        f"[CALIB] Done! offset_pos={offset_pos:.4f} rad after {calib_tick} ticks. Driving to pos_max.",
+                        f"[CALIB] Done! offset_pos={offset_pos:.4f} rad after {calib_tick} ticks. "
+                        f"Start elevation: {start_elevation} mm.",
                         flush=True,
                     )
-                lifter.get_arm().posvel_control_all(
-                    [oa.PosVelParam(q=pos_max, dq=VEL_MAX / 20.0)]
-                )
-                time.sleep(0.2)
             continue
 
         # --- Normal Operation Phase ---
@@ -238,6 +268,10 @@ def _dora_main(lifter, args):
             speed_factor = 0.25 + 0.75 * (clamped_distance / slow_margin)
         else:
             speed_factor = 1.0
+
+        # Any explicit move ends the drive to the start elevation.
+        if event_id == "move_elevation" or abs(joystick_y) > JOYSTICK_DEADZONE:
+            moving_to_start = False
 
         # --- Elevation (mm) ---
         if event_id == "move_elevation":
@@ -356,9 +390,16 @@ def _dora_main(lifter, args):
                 "elevation_action",
                 pa.array([hold_elevation], type=pa.float32()),
             )
+            if moving_to_start and _reached(obs_position + offset_pos, hold_pos):
+                moving_to_start = False
             # Hold position with a small velocity to maintain stiffness, preventing drift due to gravity or disturbances
             lifter.get_arm().posvel_control_all(
-                [oa.PosVelParam(q=hold_pos, dq=HOLD_POS_VEL)]
+                [
+                    oa.PosVelParam(
+                        q=hold_pos,
+                        dq=START_MOVE_VEL if moving_to_start else HOLD_POS_VEL,
+                    )
+                ]
             )
 
 
@@ -392,12 +433,26 @@ def main():
         type=float,
     )
     parser.add_argument(
+        "--start-elevation",
+        default=os.getenv("START_ELEVATION", "off"),
+        help=(
+            "Elevation in mm to move to and hold after calibration (0 = bottom), "
+            "or 'off' to stay where calibration ends"
+        ),
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         default=False,
         help="Enable debug prints for calibration and event flow",
     )
     args = parser.parse_args()
+    try:
+        _start_elevation(args.start_elevation, args.screw_length)
+    except ValueError:
+        parser.error(
+            f"--start-elevation: not a number or 'off': {args.start_elevation}"
+        )
 
     lifter = oa.OpenArm(args.can_interface, enable_fd=True)
 
@@ -407,6 +462,15 @@ def main():
     control_modes = [oa.ControlMode.POS_VEL]
 
     lifter.init_arm_motors(motor_types, send_ids, recv_ids, control_modes)
+
+    # The motor starts in whatever mode was last saved to its flash (MIT from
+    # the factory) and ignores position/velocity commands in any other mode,
+    # leaving the lifter unable to move or calibrate. Set the mode on every
+    # start, before enabling; it is not saved to flash.
+    lifter.set_callback_mode_all(oa.CallbackMode.IGNORE)
+    lifter.get_arm().set_control_mode_all(oa.ControlMode.POS_VEL)
+    lifter.recv_all()
+
     lifter.set_callback_mode_all(oa.CallbackMode.STATE)
 
     lifter.enable_all()

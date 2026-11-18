@@ -51,3 +51,24 @@ def test_deadzone_joystick_y_does_not_produce_elevation_action(joystick_y):
 
     assert action_elevation is None
     assert applied_vel == 0.0
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("off", None),
+        ("", None),
+        (None, None),
+        ("0", 0.0),
+        ("120.5", 120.5),
+        ("-10", 0.0),
+        ("999", 300.0),
+    ],
+)
+def test_start_elevation_is_off_or_clamped_to_the_stroke(value, expected):
+    assert main_module._start_elevation(value, screw_length=300.0) == expected
+
+
+def test_start_elevation_rejects_other_text():
+    with pytest.raises(ValueError):
+        main_module._start_elevation("bottom", screw_length=300.0)
