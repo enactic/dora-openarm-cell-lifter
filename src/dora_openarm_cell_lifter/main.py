@@ -230,6 +230,11 @@ def _dora_main(lifter, args):
                     )
                     is_stopping = True
                     moving_to_start = True
+                    # Stop pushing into the bottom now, or the torque reads
+                    # as a jam on the next tick and cancels the start move.
+                    lifter.get_arm().posvel_control_all(
+                        [oa.PosVelParam(q=hold_pos, dq=START_MOVE_VEL)]
+                    )
                 if args.debug:
                     print(
                         f"[CALIB] Done! offset_pos={offset_pos:.4f} rad after {calib_tick} ticks. "
@@ -462,15 +467,6 @@ def main():
     control_modes = [oa.ControlMode.POS_VEL]
 
     lifter.init_arm_motors(motor_types, send_ids, recv_ids, control_modes)
-
-    # The motor starts in whatever mode was last saved to its flash (MIT from
-    # the factory) and ignores position/velocity commands in any other mode,
-    # leaving the lifter unable to move or calibrate. Set the mode on every
-    # start, before enabling; it is not saved to flash.
-    lifter.set_callback_mode_all(oa.CallbackMode.IGNORE)
-    lifter.get_arm().set_control_mode_all(oa.ControlMode.POS_VEL)
-    lifter.recv_all()
-
     lifter.set_callback_mode_all(oa.CallbackMode.STATE)
 
     lifter.enable_all()
